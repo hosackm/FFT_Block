@@ -29,3 +29,4 @@
 *.hex
 
 Makefile
+make
