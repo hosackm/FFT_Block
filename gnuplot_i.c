@@ -106,7 +106,8 @@ gnuplot_ctrl * gnuplot_init(void)
     gnuplot_setstyle(handle, "points") ;
     handle->ntmp = 0 ;
 
-    handle->gnucmd = popen("gnuplot", "w") ;
+    //handle->gnucmd = popen("gnuplot", "w") ;
+    handle->gnucmd = popen("/usr/local/bin/gnuplot", "w") ;
     if (handle->gnucmd == NULL) {
         fprintf(stderr, "error starting gnuplot, is gnuplot or gnuplot.exe in your path?\n") ;
         free(handle) ;

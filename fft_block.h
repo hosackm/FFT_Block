@@ -2,6 +2,7 @@
 #define FFT_PLOT_BLOCK_H
 
 #include "fftw3.h"
+#include "gnuplot_i.h"
 
 typedef struct
 {
@@ -21,7 +22,12 @@ typedef struct
      * Magnitude converted samples
      * ie. sqrt(re^2 + im^2) of fft_out_cmplx
     **/
-    double *p_fft_out;
+    double *p_fft_mag;
+    
+    /**
+     * Frequency bins for fft in Hz
+    **/
+    double *p_freq_bins;
 
     /**
      * Keeps track of how many samples have been
@@ -37,6 +43,11 @@ typedef struct
      * FFT plan from FFTW library
     **/
     fftw_plan plan;
+    
+    /**
+     * GNUPLOT vars
+    **/
+    gnuplot_ctrl *ctrl;
 } fft_block_ctx;
 
 /**
