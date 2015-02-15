@@ -17,7 +17,6 @@ static int callback(const void* input,
 {
     float* in = (float*)input;
     float* out = (float*)output;
-    int i;
     
 
     fft_block_process(in

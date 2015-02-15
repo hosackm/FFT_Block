@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include "fft_block.h"
 #include "portaudio.h"
@@ -12,7 +13,7 @@ static fft_block_ctx *_this = &gCTX;
 static unsigned int b_initialized = 0;
 
 /* --------------- Function Prototypes --------------- */
-void hanning(float *samples, const unsigned int length);
+void hanning(double *samples, const unsigned int length);
 //void convert_mag(fftw_complex *in, float *out);
 /* --------------------------------------------------- */
 
@@ -22,7 +23,6 @@ void hanning(float *samples, const unsigned int length);
  *      configures the static ctx instance and
  *      returns a pointer to it
 **/
-//fft_block_ctx *fft_block_init
 int fft_block_init
 (
     unsigned int samplerate
@@ -35,9 +35,18 @@ int fft_block_init
     }
 
     b_initialized = 1;
-    _this->p_pcm_samples = (float *)malloc(sizeof(float) * fftlength);
-    _this->p_fft_out = (float *)malloc(sizeof(float) * (fftlength / 2 + 1) );
+    _this->p_pcm_samples = (double *)malloc(sizeof(double) * fftlength);
+    _this->p_fft_out = (double *)malloc(sizeof(double) * (fftlength / 2 + 1) );
+    _this->fft_out_cmplx = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * (fftlength / 2 + 1));
     _this->num_samples = 0;
+    _this->plan = fftw_plan_dft_r2c_1d(fftlength
+                                       ,_this->p_pcm_samples
+                                       ,_this->fft_out_cmplx
+                                       ,FFTW_ESTIMATE
+                                       );
+    
+    _this->pcm_length = fftlength;
+    _this->fft_length = fftlength / 2 + 1; /* real to complex concatenation */
 
     //return _this;
     return 0;
@@ -58,6 +67,7 @@ void fft_block_close()
     b_initialized = 0;
     free(_this->p_pcm_samples);
     free(_this->p_fft_out);
+    fftw_free(_this->fft_out_cmplx);
 }
 
 /**
@@ -88,6 +98,8 @@ int fft_block_process
         if(_this->num_samples == FFT_BLOCK_DEFAULT_FFT_LENGTH)
         {
             /* Perform fft and copy to p_fft_out */
+            hanning(_this->p_pcm_samples, FFT_BLOCK_DEFAULT_FFT_LENGTH);
+            fftw_execute(_this->plan);
 
             /* Wrap around to start of p_pcm_samples */
             _this->num_samples -= FFT_BLOCK_DEFAULT_FFT_LENGTH;
@@ -95,4 +107,22 @@ int fft_block_process
     }
 
     return paContinue;
+}
+
+void hanning
+(
+    double *samples
+    ,const unsigned int length
+)
+{
+    unsigned i;
+    int N = length - 1;
+    
+    
+    for (i = 0; i < length; ++i) {
+        double mult = 0.5 * (1.0 - cos(2 * M_PI * i / N));
+        *samples = mult * (*samples);
+        samples++;
+    }
+    
 }
