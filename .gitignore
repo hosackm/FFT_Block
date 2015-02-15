@@ -31,3 +31,4 @@
 Makefile
 make
 .DS_Store
+*tmp*
