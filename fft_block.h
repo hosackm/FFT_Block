@@ -6,6 +6,7 @@
 
 typedef struct
 {
+    
     /**
      * PCM Samples from Portaudio
      * Will be an array of length N (65536 for now)
@@ -48,13 +49,16 @@ typedef struct
      * GNUPLOT vars
     **/
     gnuplot_ctrl *ctrl;
+    
 } fft_block_ctx;
 
-/**
+/** ------------------------------------------
  *  fft_block_init
+ *  ------------------------------------------
  *      Takes a sample rate and an fft length
  *      configures the static ctx instance and
  *      returns a pointer to it
+ *  ==========================================
 **/
 //fft_block_ctx *fft_block_init
 int fft_block_init
@@ -63,18 +67,22 @@ int fft_block_init
     ,unsigned int fftlength
 );
 
-/**
+/** -----------------------------------------------
  *  fft_block_close 
+ *  -----------------------------------------------
  *      Called to close and clean up the fft_block
  *      instance
+ *  ===============================================
 **/
 void fft_block_close();
 
-/**
+/** ----------------------------------------------------
  *  fft_block_process
+ *  ----------------------------------------------------
  *      Called every time Portaudio calls our callback
  *      This will passthrough audio after making a
  *      local copy of it in the instance's p_pcm_samples
+ *  ====================================================
 **/
 int fft_block_process
 (

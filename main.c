@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #include "portaudio.h"
 #include "fft_block.h"
@@ -9,6 +10,8 @@
 
 #define SAMPLE_RATE 48000
 #define FFT_LENGTH  2048
+
+#define PA_CHECKERROR(x) assert( (x) == paNoError);
 
 
 static int callback(const void* input,
@@ -22,11 +25,12 @@ static int callback(const void* input,
     float* out = (float*)output;
     
 
+    /* Perform FFT process */
     fft_block_process(in
-                    ,out
-                    ,framesPerBuffer
-                    ,userData
-                    );
+                      ,out
+                      ,framesPerBuffer
+                      ,userData
+                      );
     
     return 0;
 }
@@ -38,51 +42,50 @@ int main(int argc, const char * argv[])
     PaError err;
 
 
-    /* Initialize my fft block */
+    /* Initialize fft block */
     fft_err = fft_block_init(SAMPLE_RATE, FFT_LENGTH);
 
+    /* Init Portaudio */
     err = Pa_Initialize();
-    if (err != paNoError){
-        return -1;
-    }
+    PA_CHECKERROR(err);
     
-    err = Pa_OpenDefaultStream( &stream,
-                               1,
-                               1,
-                               paFloat32,
-                               SAMPLE_RATE,
-                               256,
-                               callback,
-                               NULL);
-    if (err != paNoError){
-        return -1;
-    }
+    /* Use default audio device with one input and output */
+    err = Pa_OpenDefaultStream(&stream
+                               ,1
+                               ,1
+                               ,paFloat32
+                               ,SAMPLE_RATE
+                               ,256
+                               ,callback
+                               ,NULL);
+    PA_CHECKERROR(err);
 
+    /* Let Portaudio start */
     printf("Starting stream... press 'enter' to exit\n");
     err = Pa_StartStream(stream);
-    if (err != paNoError){
-        return -1;
-    }
+    PA_CHECKERROR(err);
 
-/* Run until user provides keyboard input */
+    /* Run until user provides keyboard input */
 #ifdef _WIN32
     _getch();
 #else
     getchar();
 #endif
-    printf("\nDone!\n");
     
+    /* Stop Portaudio */
+    printf("\nDone!\n");
+    err = Pa_StopStream(stream);
+    PA_CHECKERROR(err);
+    
+    /* free the fft block */
     fft_block_close();
 
+    /* Clean up Portaudio */
     err = Pa_CloseStream(stream);
-    if (err != paNoError){
-        return -1;
-    }
+    PA_CHECKERROR(err);
     
     err = Pa_Terminate();
-    if (err != paNoError){
-        return -1;
-    }
+    PA_CHECKERROR(err);
     
     return 0;
 }

@@ -3,26 +3,32 @@
 
 #include "fft_block.h"
 #include "portaudio.h"
+#include "gnuplot_i.h"
 
 #define FFT_BLOCK_DEFAULT_FFT_LENGTH    65536
 #define FFT_BLOCK_DEFAULT_SAMPLE_RATE   48000
 
 
+/** 
+ *  One static instance of the fft block context is allowed
+ *  It can be referenced by the global pointer _this
+ *
+ *  Same goes for the gnuplot_ctrl.  It can be referenced
+ *  inside this source file using the _ctrl reference
+**/
 static fft_block_ctx gCTX;
 static fft_block_ctx *_this = &gCTX;
+static gnuplot_ctrl *_ctrl;
 static unsigned int b_initialized = 0;
 
-/* --------------- Function Prototypes --------------- */
-void hanning(double *samples, const unsigned length);
-void convert_mag(fftw_complex *in, double *out, const unsigned length);
-/* --------------------------------------------------- */
+/* ------------------------ Function Prototypes --------------------------- */
 
-/**
- *  fft_block_init
- *      Takes a sample rate and an fft length
- *      configures the static ctx instance and
- *      returns a pointer to it
-**/
+void hanning(double *samples, const unsigned length);
+void convert_mag(const fftw_complex *in, double *out, const unsigned length);
+
+/* ------------------------------------------------------------------------ */
+
+
 int fft_block_init
 (
     unsigned int samplerate
@@ -36,38 +42,48 @@ int fft_block_init
         return -1;
     }
 
+    /* Avoid double initializing */
     b_initialized = 1;
     
-    /* SIZES */
+    /* Init SIZES */
     _this->num_samples = 0;
     _this->pcm_length = fftlength;
     _this->fft_length = fftlength / 2 + 1; /* real to complex concatenation */
     
-    /* PORTAUDIO */
-    _this->p_pcm_samples = (double *)malloc(sizeof(double) * _this->pcm_length);
-    _this->p_fft_mag = (double *)malloc(sizeof(double) * _this->fft_length );
+    /* Init PORTAUDIO */
+    _this->p_pcm_samples = (double *) malloc(sizeof(double) * _this->pcm_length);
+    _this->p_fft_mag = (double *) malloc(sizeof(double) * _this->fft_length );
     
-    /* FFTW */
+    /* Init FFTW */
     _this->fft_out_cmplx = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * _this->fft_length );
-    _this->p_freq_bins = (double *)malloc(sizeof(double) * _this->fft_length );
+    _this->p_freq_bins = (double *) malloc(sizeof(double) * _this->fft_length );
     _this->plan = fftw_plan_dft_r2c_1d(fftlength
                                        ,_this->p_pcm_samples
                                        ,_this->fft_out_cmplx
                                        ,FFTW_ESTIMATE
                                        );
     
-    /* GNUPLOT */
-    _this->ctrl = gnuplot_init();
-    gnuplot_setstyle(_this->ctrl, "lines");
-    gnuplot_cmd(_this->ctrl, "set term aqua title \"FFT Block Window\"");
-    gnuplot_cmd(_this->ctrl, "set title \"Microphone Audio Spectrum\"");
-    gnuplot_cmd(_this->ctrl, "set logscale x");
-    gnuplot_cmd(_this->ctrl, "set yrange [0:100]");
-    gnuplot_cmd(_this->ctrl, "set xrange [20:20000]");
-    gnuplot_cmd(_this->ctrl, "set ylabel \"Magnitude (dB)\"");
-    gnuplot_cmd(_this->ctrl, "set xlabel \"Frequency (Hz)\"");
+    /* Init GNUPLOT and setup window */
+    _ctrl = gnuplot_init();
     
-    /* Fill Frequency bins */
+    gnuplot_cmd(_ctrl, "set term aqua title \"FFT Block Window\"");
+    gnuplot_cmd(_ctrl, "set title \"Microphone Audio Spectrum\"");
+    gnuplot_cmd(_ctrl, "set logscale x");
+    gnuplot_cmd(_ctrl, "set yrange [0:100]");
+    gnuplot_cmd(_ctrl, "set xrange [20:20000]");
+    gnuplot_cmd(_ctrl, "set ylabel \"Magnitude (dB)\"");
+    gnuplot_cmd(_ctrl, "set xlabel \"Frequency (Hz)\"");
+    
+    gnuplot_setstyle(_ctrl, "lines");
+
+    /** ------------------------------------------------------
+     *  Fill Frequency bins
+     *  ------------------------------------------------------
+     *  Each bin will be: (Sample Rate) / (FFT Length) Hz wide
+     *  ie:  Sample Rate: 48 kHz, FFT Length: 8192
+     *          48000 / 8192 = 5.86 Hz
+     *  ======================================================
+    **/
     for(i = 0; i < _this->fft_length; ++i)
     {
         _this->p_freq_bins[i] = (i * ((float) FFT_BLOCK_DEFAULT_SAMPLE_RATE) / _this->pcm_length);
@@ -76,11 +92,6 @@ int fft_block_init
     return 0;
 }
 
-/**
- *  fft_block_close 
- *      Called to close and clean up the fft_block
- *      instance
-**/
 void fft_block_close()
 {
     if(!b_initialized)
@@ -88,21 +99,19 @@ void fft_block_close()
         return;
     }
 
-    b_initialized = 0;
+    /* Free dynamic memory. 4 malloc's == 4 free's */
     free(_this->p_pcm_samples);
     free(_this->p_fft_mag);
     free(_this->p_freq_bins);
     fftw_free(_this->fft_out_cmplx);
+
+    /* Close GNUPLOT handle */
+    gnuplot_close(_ctrl);
     
-    gnuplot_close(_this->ctrl);
+    /* Now we can initialize again */
+    b_initialized = 0;
 }
 
-/**
- *  fft_block_process
- *      Called every time Portaudio calls our callback
- *      This will passthrough audio after making a
- *      local copy of it in the instance's p_pcm_samples
-**/
 int fft_block_process
 (
     const float* input
@@ -114,35 +123,45 @@ int fft_block_process
     unsigned long i;
 
     if(!b_initialized)
-    {
+    {   /* Trying to process before initializing */
         return paAbort;
     }
 
     for(i = 0; i < framesPerBuffer; ++i)
     {
+        /* Copy input to p_pcm_samples and passthrough to output */
         *output++ = _this->p_pcm_samples[_this->num_samples++] = *input++;
 
+        /* Check if we've buffered enough samples */
         if(_this->num_samples == _this->pcm_length)
         {
-            /* Perform fft and copy to p_fft_out */
+            /* Apply Hanning Window */
             hanning(_this->p_pcm_samples, _this->pcm_length);
-            convert_mag(_this->fft_out_cmplx, _this->p_fft_mag, _this->fft_length);
+            
+            /* Perform FFT */
             fftw_execute(_this->plan);
             
-            /* Plot */
-            gnuplot_resetplot(_this->ctrl);
-            gnuplot_plot_xy(_this->ctrl, _this->p_freq_bins, _this->p_fft_mag, _this->fft_length, "");
+            /* Convert complex numbers into magnitudes */
+            convert_mag(_this->fft_out_cmplx, _this->p_fft_mag, _this->fft_length);
+            
+            /* Clear gnuplot */
+            gnuplot_resetplot(_ctrl);
+            
+            /* Plot magnitudes vs. frequencies */
+            gnuplot_plot_xy(_ctrl, _this->p_freq_bins, _this->p_fft_mag, _this->fft_length, "");
 
             /* Wrap around to start of p_pcm_samples */
             _this->num_samples -= _this->pcm_length;
         }
     }
 
+    /* Everything worked fine */
     return paContinue;
 }
 
 /**
  *  Apply Hanning window to samples to smooth edges of sample blocks
+ *  More info here: http://en.wikipedia.org/wiki/Hann_function
 **/
 void hanning
 (
@@ -155,9 +174,9 @@ void hanning
     
     
     for (i = 0; i < length; ++i) {
+        /* Calculate Hanning multiplier w(n) and scale the sample by it */
         double mult = 0.5 * (1.0 - cos(2 * M_PI * i / N));
-        *samples = mult * (*samples);
-        samples++;
+        samples[i] = mult * samples[i];
     }
     
 }
@@ -169,7 +188,7 @@ void hanning
 **/
 void convert_mag
 (
-    fftw_complex *in
+    const fftw_complex *in
     ,double *out
     ,const unsigned length
 )
@@ -178,11 +197,10 @@ void convert_mag
     
     for(i = 0; i < length; ++i)
     {
-        double real, imag;
+        double real = in[i][0];
+        double imag = in[i][1];
         
-        real = in[i][0];
-        imag = in[i][1];
-        
+        /* Calculate magnitude */
         out[i] = 20.0f * log(sqrt(real*real + imag*imag));
     }
 }
