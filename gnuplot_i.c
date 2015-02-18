@@ -35,8 +35,11 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <io.h>
+
+#define popen _popen
+#define pclose _pclose
 #endif // #ifdef WIN32
 
 /*---------------------------------------------------------------------------
@@ -107,7 +110,7 @@ gnuplot_ctrl * gnuplot_init(void)
     handle->ntmp = 0 ;
 
     //handle->gnucmd = popen("gnuplot", "w") ;
-    handle->gnucmd = popen("/usr/local/bin/gnuplot", "w") ;
+    handle->gnucmd = popen ("/usr/local/bin/gnuplot", "w") ;
     if (handle->gnucmd == NULL) {
         fprintf(stderr, "error starting gnuplot, is gnuplot or gnuplot.exe in your path?\n") ;
         free(handle) ;
@@ -683,7 +686,7 @@ char const * gnuplot_tmpfile(gnuplot_ctrl * handle)
     }
     strcpy(tmp_filename, tmp_filename_template);
 
-#ifdef WIN32
+#ifdef _WIN32
     if (_mktemp(tmp_filename) == NULL)
     {
         return NULL;
