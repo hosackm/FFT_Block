@@ -23,10 +23,8 @@ static gnuplot_ctrl *_ctrl;
 static unsigned int b_initialized = 0;
 
 /* ------------------------ Function Prototypes --------------------------- */
-
 void hanning(double *samples, const unsigned length);
 void convert_mag(const fftw_complex *in, double *out, const unsigned length);
-
 /* ------------------------------------------------------------------------ */
 
 
@@ -37,7 +35,7 @@ int fft_block_init
 )
 {
     unsigned i;
-    
+
     if(b_initialized || samplerate != 48000)
     {
         return -1;
@@ -45,16 +43,16 @@ int fft_block_init
 
     /* Avoid double initializing */
     b_initialized = 1;
-    
+
     /* Init SIZES */
     _this->num_samples = 0;
     _this->pcm_length = fftlength;
     _this->fft_length = fftlength / 2 + 1; /* real to complex concatenation */
-    
+
     /* Init PORTAUDIO */
     _this->p_pcm_samples = (double *) malloc(sizeof(double) * _this->pcm_length);
     _this->p_fft_mag = (double *) malloc(sizeof(double) * _this->fft_length );
-    
+
     /* Init FFTW */
     _this->fft_out_cmplx = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * _this->fft_length );
     _this->p_freq_bins = (double *) malloc(sizeof(double) * _this->fft_length );
@@ -63,10 +61,10 @@ int fft_block_init
                                        ,_this->fft_out_cmplx
                                        ,FFTW_ESTIMATE
                                        );
-    
+
     /* Init GNUPLOT and setup window */
     _ctrl = gnuplot_init();
-    
+
 #ifdef _WIN32
 	gnuplot_cmd(_ctrl, "set term wxt title \"FFT Block Window\"");
 #else
@@ -78,7 +76,6 @@ int fft_block_init
     gnuplot_cmd(_ctrl, "set xrange [20:20000]");
     gnuplot_cmd(_ctrl, "set ylabel \"Magnitude (dB)\"");
     gnuplot_cmd(_ctrl, "set xlabel \"Frequency (Hz)\"");
-    
     gnuplot_setstyle(_ctrl, "lines");
 
     /** ------------------------------------------------------
@@ -112,7 +109,7 @@ void fft_block_close()
 
     /* Close GNUPLOT handle */
     gnuplot_close(_ctrl);
-    
+
     /* Now we can initialize again */
     b_initialized = 0;
 }
@@ -183,7 +180,6 @@ void hanning
         double mult = 0.5 * (1.0 - cos(2 * M_PI * i / N));
         samples[i] = mult * samples[i];
     }
-    
 }
 
 /**
@@ -199,12 +195,11 @@ void convert_mag
 )
 {
     unsigned int i;
-    
+
     for(i = 0; i < length; ++i)
     {
         double real = in[i][0];
         double imag = in[i][1];
-        
         /* Calculate magnitude */
         out[i] = 20.0f * log(sqrt(real*real + imag*imag));
     }

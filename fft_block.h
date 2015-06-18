@@ -6,13 +6,12 @@
 
 typedef struct
 {
-    
     /**
      * PCM Samples from Portaudio
      * Will be an array of length N (65536 for now)
     **/
     double *p_pcm_samples;
-    
+
     /**
      * Output FFT samples from FFTW library
      * Will be an array of length (N / 2) + 1
@@ -24,7 +23,7 @@ typedef struct
      * ie. sqrt(re^2 + im^2) of fft_out_cmplx
     **/
     double *p_fft_mag;
-    
+
     /**
      * Frequency bins for fft in Hz
     **/
@@ -36,7 +35,6 @@ typedef struct
      * this number is >= N the fft will be performed
     **/
     unsigned int num_samples;
-    
     unsigned int pcm_length;
     unsigned int fft_length;
 
@@ -44,12 +42,12 @@ typedef struct
      * FFT plan from FFTW library
     **/
     fftw_plan plan;
-    
+
     /**
      * GNUPLOT vars
     **/
     gnuplot_ctrl *ctrl;
-    
+
 } fft_block_ctx;
 
 /** ------------------------------------------
