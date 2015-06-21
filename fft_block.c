@@ -68,7 +68,7 @@ int fft_block_init
 #ifdef _WIN32
 	gnuplot_cmd(_ctrl, "set term wxt title \"FFT Block Window\"");
 #else
-    guplot_cmd(_ctrl, "set term aqua title \"FFT Block Window\"");
+    gnuplot_cmd(_ctrl, "set term aqua title \"FFT Block Window\"");
 #endif
     gnuplot_cmd(_ctrl, "set title \"Microphone Audio Spectrum\"");
     gnuplot_cmd(_ctrl, "set logscale x");

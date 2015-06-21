@@ -6,7 +6,11 @@
 
 #ifdef _WIN32
 #include <conio.h>
+#define GETCH _getch
+#else
+#define GETCH getchar
 #endif
+
 
 #define SAMPLE_RATE 48000
 #define FFT_LENGTH  2048
@@ -62,12 +66,8 @@ int main(int argc, const char * argv[])
     err = Pa_StartStream(stream);
     PA_CHECKERROR(err);
 
-/* Run until user provides keyboard input */
-#ifdef _WIN32
-    _getch();
-#else
-    getchar();
-#endif
+    /* Run until user provides keyboard input */
+    GETCH();
 
     /* Stop Portaudio */
     printf("\nDone!\n");
