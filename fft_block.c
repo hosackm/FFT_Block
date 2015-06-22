@@ -172,12 +172,13 @@ void hanning
 )
 {
     unsigned i;
+    double mult;
     int N = length - 1;
     
     
     for (i = 0; i < length; ++i) {
         /* Calculate Hanning multiplier w(n) and scale the sample by it */
-        double mult = 0.5 * (1.0 - cos(2 * M_PI * i / N));
+        mult = 0.5 * (1.0 - cos(2 * M_PI * i / N));
         samples[i] = mult * samples[i];
     }
 }
@@ -195,11 +196,12 @@ void convert_mag
 )
 {
     unsigned int i;
+    double real, imag;
 
     for(i = 0; i < length; ++i)
     {
-        double real = in[i][0];
-        double imag = in[i][1];
+        real = in[i][0];
+        imag = in[i][1];
         /* Calculate magnitude */
         out[i] = 20.0f * log(sqrt(real*real + imag*imag));
     }
