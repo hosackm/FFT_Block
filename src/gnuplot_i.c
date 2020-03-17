@@ -35,11 +35,14 @@
 #include <stdarg.h>
 #include <assert.h>
 
+
 #ifdef _WIN32
 #include <io.h>
 
 #define popen _popen
 #define pclose _pclose
+#else
+#include <unistd.h>
 #endif // #ifdef _WIN32
 
 /*---------------------------------------------------------------------------
